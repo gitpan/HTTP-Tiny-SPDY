@@ -40,4 +40,4 @@ resources:
   bugtracker: https://github.com/odyniec/p5-HTTP-Tiny-SPDY/issues
   homepage: https://github.com/odyniec/p5-HTTP-Tiny-SPDY
   repository: https://github.com/odyniec/p5-HTTP-Tiny-SPDY.git
-version: 0.010
+version: 0.011

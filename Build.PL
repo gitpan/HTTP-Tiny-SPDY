@@ -18,7 +18,7 @@ my %module_build_args = (
     "Michal Wojciechowski <odyniec\@cpan.org>"
   ],
   "dist_name" => "HTTP-Tiny-SPDY",
-  "dist_version" => "0.010",
+  "dist_version" => "0.011",
   "license" => "perl",
   "module_name" => "HTTP::Tiny::SPDY",
   "recommends" => {},
