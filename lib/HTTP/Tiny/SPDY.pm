@@ -5,7 +5,7 @@ use warnings;
 
 # ABSTRACT: A subclass of HTTP::Tiny with SPDY support
 
-our $VERSION = '0.011'; # VERSION
+our $VERSION = '0.012'; # VERSION
 
 use HTTP::Tiny;
 use Net::SPDY::Session;
@@ -347,7 +347,7 @@ HTTP::Tiny::SPDY - A subclass of HTTP::Tiny with SPDY support
 
 =head1 VERSION
 
-version 0.011
+version 0.012
 
 =head1 SYNOPSIS
 
