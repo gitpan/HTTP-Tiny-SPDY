@@ -1,0 +1,13 @@
+
+
+This archive contains the distribution HTTP-Tiny-SPDY,
+version 0.010:
+
+  A subclass of HTTP::Tiny with SPDY support
+
+This software is copyright (c) 2013 by Michal Wojciechowski.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+

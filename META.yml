@@ -1,0 +1,43 @@
+---
+abstract: 'A subclass of HTTP::Tiny with SPDY support'
+author:
+  - 'Michal Wojciechowski <odyniec@cpan.org>'
+build_requires:
+  Data::Dumper: 0
+  Exporter: 0
+  File::Basename: 0
+  File::Spec: 0
+  File::Temp: 0
+  IO::Dir: 0
+  IO::File: 0
+  IO::Socket::INET: 0
+  IO::Socket::SSL: 1.56
+  IPC::Cmd: 0
+  Module::Build: 0.3601
+  Mozilla::CA: 0
+  Test::More: 0.96
+  open: 0
+configure_requires:
+  ExtUtils::MakeMaker: 6.30
+  Module::Build: 0.3601
+dynamic_config: 0
+generated_by: 'Dist::Zilla version 4.300039, CPAN::Meta::Converter version 2.120921'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: HTTP-Tiny-SPDY
+requires:
+  HTTP::Tiny: 0
+  IO::Socket: 0
+  IO::Socket::SSL: 1.42
+  Net::SPDY::Session: 0
+  Net::SSLeay: 1.49
+  parent: 0
+  strict: 0
+  warnings: 0
+resources:
+  bugtracker: https://github.com/odyniec/p5-HTTP-Tiny-SPDY/issues
+  homepage: https://github.com/odyniec/p5-HTTP-Tiny-SPDY
+  repository: https://github.com/odyniec/p5-HTTP-Tiny-SPDY.git
+version: 0.010
