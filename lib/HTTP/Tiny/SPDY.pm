@@ -5,7 +5,7 @@ use warnings;
 
 # ABSTRACT: A subclass of HTTP::Tiny with SPDY support
 
-our $VERSION = '0.013'; # VERSION
+our $VERSION = '0.020'; # VERSION
 
 use HTTP::Tiny;
 use Net::SPDY::Session;
@@ -15,12 +15,14 @@ use parent 'HTTP::Tiny';
 my @attributes;
 BEGIN {
     @attributes = qw(enable_SPDY);
+    ## no critic (NoStrict)
     no strict 'refs';
     for my $accessor (@attributes) {
         *{$accessor} = sub {
             @_ > 1 ? $_[0]->{$accessor} = $_[1] : $_[0]->{$accessor};
         };
     }
+    ## use critic
 }
 
 
@@ -47,30 +49,23 @@ sub _request {
     my $request = {
         method    => $method,
         scheme    => $scheme,
+        host      => $host,
         host_port => ($port == $DefaultPort{$scheme} ? $host : "$host:$port"),
         uri       => $path_query,
         headers   => {},
     };
  
-    my $handle_class = 'HTTP::Tiny::Handle' .
-        ($self->{enable_SPDY} ? '::SPDY' : '');
-        
-    my $handle  = $handle_class->new(
-        timeout         => $self->{timeout},
-        SSL_options     => $self->{SSL_options},
-        verify_SSL      => $self->{verify_SSL},
-        local_address   => $self->{local_address},
-    );
- 
-    if ($self->{proxy} && ! grep { $host =~ /\Q$_\E$/ } @{$self->{no_proxy}}) {
-        $request->{uri} = "$scheme://$request->{host_port}$path_query";
-        die(qq/HTTPS via proxy is not supported\n/)
-            if $request->{scheme} eq 'https';
-        $handle->connect(($self->_split_url($self->{proxy}))[0..2]);
+    # We remove the cached handle so it is not reused in the case of redirect.
+    # If all is well, it will be recached at the end of _request.  We only
+    # reuse for the same scheme, host and port
+    my $handle = delete $self->{handle};
+    if ( $handle ) {
+        unless ( $handle->can_reuse( $scheme, $host, $port ) ) {
+            $handle->close;
+            undef $handle;
+        }
     }
-    else {
-        $handle->connect($scheme, $host, $port);
-    }
+    $handle ||= $self->_open_handle( $request, $scheme, $host, $port );
 
     $self->_prepare_headers_and_cb($request, $args, $url, $auth);
 
@@ -130,6 +125,8 @@ sub _request {
                 delta_window_size => 0x00010000,
             );
         }
+
+        $handle->close;
     }
     else {
         # Traditional HTTP(S) connection
@@ -143,19 +140,55 @@ sub _request {
             return $self->_request(@redir_args, $args);
         }
      
+        my $known_message_length;
         if ($method eq 'HEAD' || $response->{status} =~ /^[23]04/) {
             # response has no message body
+            $known_message_length = 1;
         }
         else {
             my $data_cb = $self->_prepare_data_cb($response, $args);
-            $handle->read_body($data_cb, $response);
+            $known_message_length = $handle->read_body($data_cb, $response);
         }
+
+        if ( $self->{keep_alive}
+            && $known_message_length
+            && $response->{protocol} eq 'HTTP/1.1'
+            && ($response->{headers}{connection} || '') ne 'close'
+        ) {
+            $self->{handle} = $handle;
+        }
+        else {
+            $handle->close;
+        }        
     }
  
-    $handle->close;
     $response->{success} = substr($response->{status},0,1) eq '2';
     $response->{url} = $url;
     return $response;
+}
+
+sub _open_handle {
+    my ($self, $request, $scheme, $host, $port) = @_;
+
+    if ($self->{enable_SPDY}) {
+        my $handle  = HTTP::Tiny::Handle::SPDY->new(
+            timeout         => $self->{timeout},
+            SSL_options     => $self->{SSL_options},
+            verify_SSL      => $self->{verify_SSL},
+            local_address   => $self->{local_address},
+            keep_alive      => $self->{keep_alive},
+        );
+
+        if ($self->{_has_proxy}{$scheme} && ! grep { $host =~ /\Q$_\E$/ } @{$self->{no_proxy}}) {
+            return $self->_proxy_connect( $request, $handle );
+        }
+        else {
+            return $handle->connect($scheme, $host, $port);
+        }
+    }
+    else {
+        return $self->SUPER::_open_handle($request, $scheme, $host, $port);
+    }
 }
 
 package
@@ -196,24 +229,8 @@ sub connect {
     binmode($self->{fh})
       or die(qq/Could not binmode() socket: '$!'\n/);
 
-    if ( $scheme eq 'https') {
-        my $ssl_args = $self->_ssl_args($host);
-
-        $ssl_args->{SSL_npn_protocols} = ['spdy/3'];
-        
-        IO::Socket::SSL->start_SSL(
-            $self->{fh},
-            %$ssl_args,
-            SSL_create_ctx_callback => sub {
-                my $ctx = shift;
-                Net::SSLeay::CTX_set_mode($ctx, Net::SSLeay::MODE_AUTO_RETRY());
-            },
-        );
- 
-        unless ( ref($self->{fh}) eq 'IO::Socket::SSL' ) {
-            my $ssl_err = IO::Socket::SSL->errstr;
-            die(qq/SSL connection failed for $host: $ssl_err\n/);
-        }
+    if ($scheme eq 'https') {
+        $self->start_ssl($host);
 
         if ($self->{fh}->next_proto_negotiated &&
             $self->{fh}->next_proto_negotiated eq 'spdy/3')
@@ -226,10 +243,11 @@ sub connect {
         }
     }
 
+    $self->{scheme} = $scheme;
     $self->{host} = $host;
     $self->{port} = $port;
  
-    return $self;   
+    return $self;
 }
 
 my $Printable = sub {
@@ -333,13 +351,23 @@ sub write_request {
     }
 }
 
+sub _ssl_args {
+    my ($self, $host) = @_;
+
+    my %ssl_args = %{$self->SUPER::_ssl_args($host)};
+
+    $ssl_args{SSL_npn_protocols} = ['spdy/3'];
+
+    return \%ssl_args;
+}
+
 1;
 
 __END__
 
 =pod
 
-=encoding utf-8
+=encoding UTF-8
 
 =head1 NAME
 
@@ -347,7 +375,7 @@ HTTP::Tiny::SPDY - A subclass of HTTP::Tiny with SPDY support
 
 =head1 VERSION
 
-version 0.013
+version 0.020
 
 =head1 SYNOPSIS
 

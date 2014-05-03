@@ -2,21 +2,18 @@
 use strict;
 use warnings;
 
+use 5.006;
 
-
-use ExtUtils::MakeMaker 6.30;
+use ExtUtils::MakeMaker 6.17;
 
 
 
 my %WriteMakefileArgs = (
   "ABSTRACT" => "A subclass of HTTP::Tiny with SPDY support",
   "AUTHOR" => "Michal Wojciechowski <odyniec\@cpan.org>",
-  "BUILD_REQUIRES" => {
-    "Module::Build" => "0.3601"
-  },
+  "BUILD_REQUIRES" => {},
   "CONFIGURE_REQUIRES" => {
-    "ExtUtils::MakeMaker" => "6.30",
-    "Module::Build" => "0.3601"
+    "ExtUtils::MakeMaker" => "6.17"
   },
   "DISTNAME" => "HTTP-Tiny-SPDY",
   "EXE_FILES" => [],
@@ -24,8 +21,9 @@ my %WriteMakefileArgs = (
   "NAME" => "HTTP::Tiny::SPDY",
   "PREREQ_PM" => {
     "HTTP::Tiny" => 0,
+    "HTTP::Tiny::Handle" => 0,
     "IO::Socket" => 0,
-    "IO::Socket::SSL" => "1.42",
+    "IO::Socket::SSL" => "1.56",
     "Net::SPDY::Session" => 0,
     "Net::SSLeay" => "1.49",
     "parent" => 0,
@@ -35,49 +33,64 @@ my %WriteMakefileArgs = (
   "TEST_REQUIRES" => {
     "Data::Dumper" => 0,
     "Exporter" => 0,
+    "ExtUtils::MakeMaker" => 0,
     "File::Basename" => 0,
     "File::Spec" => 0,
+    "File::Spec::Functions" => 0,
     "File::Temp" => 0,
     "IO::Dir" => 0,
     "IO::File" => 0,
+    "IO::Handle" => 0,
     "IO::Socket::INET" => 0,
     "IO::Socket::SSL" => "1.56",
     "IPC::Cmd" => 0,
+    "IPC::Open3" => 0,
+    "List::Util" => 0,
     "Mozilla::CA" => 0,
     "Test::More" => "0.96",
     "open" => 0
   },
-  "VERSION" => "0.013",
+  "VERSION" => "0.020",
   "test" => {
-    "TESTS" => "t/*.t"
+    "TESTS" => "t/*.t t/http_tiny/*.t"
   }
 );
 
 
-unless ( eval { ExtUtils::MakeMaker->VERSION(6.63_03) } ) {
-  my $tr = delete $WriteMakefileArgs{TEST_REQUIRES};
-  my $br = $WriteMakefileArgs{BUILD_REQUIRES};
-  for my $mod ( keys %$tr ) {
-    if ( exists $br->{$mod} ) {
-      $br->{$mod} = $tr->{$mod} if $tr->{$mod} > $br->{$mod};
-    }
-    else {
-      $br->{$mod} = $tr->{$mod};
-    }
-  }
-}
+my %FallbackPrereqs = (
+  "Data::Dumper" => 0,
+  "Exporter" => 0,
+  "ExtUtils::MakeMaker" => 0,
+  "File::Basename" => 0,
+  "File::Spec" => 0,
+  "File::Spec::Functions" => 0,
+  "File::Temp" => 0,
+  "HTTP::Tiny" => 0,
+  "HTTP::Tiny::Handle" => 0,
+  "IO::Dir" => 0,
+  "IO::File" => 0,
+  "IO::Handle" => 0,
+  "IO::Socket" => 0,
+  "IO::Socket::INET" => 0,
+  "IO::Socket::SSL" => "1.56",
+  "IPC::Cmd" => 0,
+  "IPC::Open3" => 0,
+  "List::Util" => 0,
+  "Mozilla::CA" => 0,
+  "Net::SPDY::Session" => 0,
+  "Net::SSLeay" => "1.49",
+  "Test::More" => "0.96",
+  "open" => 0,
+  "parent" => 0,
+  "strict" => 0,
+  "warnings" => 0
+);
 
-unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
-  my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
-  my $pp = $WriteMakefileArgs{PREREQ_PM};
-  for my $mod ( keys %$br ) {
-    if ( exists $pp->{$mod} ) {
-      $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
-    }
-    else {
-      $pp->{$mod} = $br->{$mod};
-    }
-  }
+
+unless ( eval { ExtUtils::MakeMaker->VERSION(6.63_03) } ) {
+  delete $WriteMakefileArgs{TEST_REQUIRES};
+  delete $WriteMakefileArgs{BUILD_REQUIRES};
+  $WriteMakefileArgs{PREREQ_PM} = \%FallbackPrereqs;
 }
 
 delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
